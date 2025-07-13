@@ -16,9 +16,209 @@ class RoadmapGenerator:
     def __init__(self):
         """Initialize the roadmap generator with OpenAI API key."""
         self.api_key = os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("OPENAI_API_KEY not found in environment variables.")
-        openai.api_key = self.api_key
+        if self.api_key and self.api_key != "your_openai_api_key_here":
+            openai.api_key = self.api_key
+            self.use_openai = True
+        else:
+            self.use_openai = False
+            print("OpenAI API key not configured. Using fallback roadmap generation.")
+    
+    def generate_roadmap(self, current_skills: List[str], target_role: str, skill_gaps: List[str]) -> str:
+        """Generate a career roadmap using OpenAI or fallback method."""
+        if self.use_openai:
+            return self._generate_openai_roadmap(current_skills, target_role, skill_gaps)
+        else:
+            return self._generate_fallback_roadmap(current_skills, target_role, skill_gaps)
+    
+    def _generate_openai_roadmap(self, current_skills: List[str], target_role: str, skill_gaps: List[str]) -> str:
+        """Generate roadmap using OpenAI API."""
+        prompt = self.generate_roadmap_prompt(current_skills, target_role, skill_gaps)
+        
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a helpful career advisor. Generate a structured 6-month roadmap in Markdown format."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1500
+            )
+            return response.choices[0].message['content']
+        except Exception as e:
+            print(f"OpenAI API error: {e}")
+            return self._generate_fallback_roadmap(current_skills, target_role, skill_gaps)
+    
+    def _generate_fallback_roadmap(self, current_skills: List[str], target_role: str, skill_gaps: List[str]) -> str:
+        """Generate a fallback roadmap when OpenAI API is not available."""
+        roadmap = f"""
+# 🚀 6-Month Career Roadmap for {target_role}
+
+**Current Skills:** {', '.join(current_skills)}  
+**Target Role:** {target_role}  
+**Key Skill Gaps:** {', '.join(skill_gaps[:5])}  
+
+---
+
+## 📅 Month 1: Foundation Building
+**🎯 Focus:** {skill_gaps[0] if skill_gaps else 'Core fundamentals'}
+
+**📚 Learning Resources:**
+- Online courses (Coursera, Udemy, edX, YouTube)
+- Official documentation and tutorials
+- Community forums and Discord servers
+
+**💻 Project Ideas:**
+- Build a simple project using the new skill
+- Follow along with tutorials and modify them
+
+**🎯 Goals:**
+- Understand basic concepts and syntax
+- Complete at least 1 hands-on project
+- Join relevant online communities
+
+---
+
+## 📅 Month 2: Practical Application
+**🎯 Focus:** {skill_gaps[1] if len(skill_gaps) > 1 else 'Hands-on practice'}
+
+**📚 Learning Resources:**
+- Practice platforms (LeetCode, HackerRank, Codewars)
+- GitHub repositories and open source projects
+- Technical blogs and case studies
+
+**💻 Project Ideas:**
+- Create a portfolio project from scratch
+- Contribute to open source projects
+- Build something that solves a real problem
+
+**🎯 Goals:**
+- Apply skills in real-world scenarios
+- Start building a portfolio
+- Network with other developers
+
+---
+
+## 📅 Month 3: Advanced Concepts
+**🎯 Focus:** {skill_gaps[2] if len(skill_gaps) > 2 else 'Advanced topics and best practices'}
+
+**📚 Learning Resources:**
+- Advanced courses and specializations
+- Technical books and research papers
+- Webinars and conference talks
+
+**💻 Project Ideas:**
+- Build a more complex, full-stack application
+- Implement advanced features and optimizations
+- Document your learning journey
+
+**🎯 Goals:**
+- Master intermediate to advanced concepts
+- Understand industry best practices
+- Start preparing for technical interviews
+
+---
+
+## 📅 Month 4: Integration & Systems
+**🎯 Focus:** System design and technology integration
+
+**📚 Learning Resources:**
+- System design courses and books
+- Cloud platform documentation (AWS, Azure, GCP)
+- DevOps and deployment guides
+
+**💻 Project Ideas:**
+- Deploy applications to cloud platforms
+- Implement CI/CD pipelines
+- Build scalable system architectures
+
+**🎯 Goals:**
+- Understand how technologies work together
+- Learn deployment and scaling
+- Build production-ready applications
+
+---
+
+## 📅 Month 5: Industry Standards & Specialization
+**🎯 Focus:** Professional development and specialization
+
+**📚 Learning Resources:**
+- Industry certifications and courses
+- Professional workshops and bootcamps
+- Networking events and meetups
+
+**💻 Project Ideas:**
+- Contribute to significant open source projects
+- Build applications using industry standards
+- Create comprehensive documentation
+
+**🎯 Goals:**
+- Meet professional industry standards
+- Obtain relevant certifications
+- Build a strong professional network
+
+---
+
+## 📅 Month 6: Portfolio & Job Preparation
+**🎯 Focus:** Career preparation and job search
+
+**📚 Learning Resources:**
+- Interview preparation platforms
+- Resume and portfolio optimization guides
+- Mock interview sessions
+
+**💻 Project Ideas:**
+- Finalize and polish portfolio projects
+- Create case studies for your work
+- Prepare technical presentation demos
+
+**🎯 Goals:**
+- Complete professional portfolio
+- Master technical interviews
+- Apply for {target_role} positions
+
+---
+
+## 🛠️ Additional Resources
+
+### 📖 **Recommended Books:**
+- Technical books specific to your target role
+- Software engineering best practices
+- Industry-specific knowledge
+
+### 👥 **Communities & Networking:**
+- LinkedIn professional groups
+- Reddit communities (r/programming, role-specific subreddits)
+- Local tech meetups and conferences
+- Discord/Slack communities
+
+### 🏆 **Certifications to Consider:**
+- Cloud platform certifications (AWS, Azure, GCP)
+- Technology-specific certifications
+- Project management certifications
+
+### 📊 **Success Metrics:**
+- ✅ Complete 2-3 substantial projects per month
+- ✅ Contribute to at least 1 open source project
+- ✅ Build a portfolio with 5+ quality projects
+- ✅ Network with 10+ professionals in your field
+- ✅ Practice coding problems regularly (if applicable)
+- ✅ Apply to 5+ relevant job positions by month 6
+
+---
+
+## 💡 **Pro Tips:**
+1. **Consistency is key** - Dedicate 1-2 hours daily to learning
+2. **Build in public** - Share your learning journey on social media
+3. **Seek feedback** - Get code reviews and portfolio feedback
+4. **Stay updated** - Follow industry trends and new technologies
+5. **Practice interviews** - Regular mock interviews with peers
+
+---
+
+*Note: This roadmap is generated using a template. For a more personalized roadmap, consider setting up an OpenAI API key in your .env file.*
+"""
+        return roadmap
     
     def generate_roadmap_prompt(self, current_skills: List[str], target_role: str, skill_gaps: List[str]) -> str:
         """Create a detailed prompt for the LLM to generate a career roadmap."""

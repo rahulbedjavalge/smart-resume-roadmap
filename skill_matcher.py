@@ -9,6 +9,162 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer, util
 import faiss
 from typing import Dict, List, Tuple
+from resume_parser import ResumeParser
+
+
+class SkillMatcher:
+    def __init__(self, model_name: str = 'all-MiniLM-L6-v2'):
+        """Initialize the skill matcher with a sentence transformer model."""
+        try:
+            self.model = SentenceTransformer(model_name)
+        except Exception as e:
+            print(f"Error loading SentenceTransformer model: {e}")
+            self.model = None
+        
+        self.job_descriptions = self._load_job_descriptions()
+        self.jd_embeddings = self._embed_job_descriptions()
+        self.faiss_index = self._build_faiss_index()
+        self.resume_parser = ResumeParser()
+
+    def _load_job_descriptions(self) -> Dict[str, str]:
+        """Load sample job descriptions."""
+        return {
+            "Software Engineer": """
+                - 5+ years of experience in Python, Java, or Go.
+                - Strong understanding of data structures, algorithms, and software design.
+                - Experience with cloud platforms like AWS or GCP.
+                - Proficient with Docker, Kubernetes, and CI/CD pipelines.
+                - Excellent problem-solving and communication skills.
+            """,
+            "AI Engineer": """
+                - 3+ years of experience in machine learning and deep learning.
+                - Proficient in Python with libraries like TensorFlow, PyTorch, and Scikit-learn.
+                - Experience with MLOps tools such as MLFlow and Kubeflow.
+                - Strong background in model deployment, optimization, and monitoring.
+                - Familiarity with NLP, computer vision, and reinforcement learning.
+            """,
+            "Data Analyst": """
+                - 2+ years of experience in data analysis and visualization.
+                - Proficient in SQL and Python (Pandas, NumPy).
+                - Experience with BI tools like Tableau or Power BI.
+                - Strong analytical and statistical skills.
+                - Excellent communication and presentation skills.
+            """,
+            "Frontend Developer": """
+                - 3+ years of experience in JavaScript, HTML, and CSS.
+                - Proficient in React, Angular, or Vue.js frameworks.
+                - Experience with responsive design and cross-browser compatibility.
+                - Knowledge of version control systems like Git.
+                - Strong attention to detail and user experience.
+            """,
+            "DevOps Engineer": """
+                - 4+ years of experience in cloud infrastructure and automation.
+                - Proficient in Docker, Kubernetes, and container orchestration.
+                - Experience with CI/CD pipelines and infrastructure as code.
+                - Knowledge of monitoring and logging tools.
+                - Strong problem-solving and collaboration skills.
+            """
+        }
+
+    def _embed_job_descriptions(self) -> Dict[str, np.ndarray]:
+        """Create embeddings for job descriptions."""
+        if not self.model:
+            return {}
+        
+        embeddings = {}
+        for role, description in self.job_descriptions.items():
+            embeddings[role] = self.model.encode(description)
+        return embeddings
+
+    def _build_faiss_index(self) -> faiss.IndexFlatL2:
+        """Build a FAISS index for efficient similarity search."""
+        if not self.jd_embeddings:
+            return None
+        
+        dimension = list(self.jd_embeddings.values())[0].shape[0]
+        index = faiss.IndexFlatL2(dimension)
+        
+        # Add embeddings to the index
+        for embedding in self.jd_embeddings.values():
+            index.add(np.array([embedding]))
+        
+        return index
+
+    def match_resume_to_roles(self, resume_skills: List[str]) -> List[Tuple[str, float]]:
+        """Match resume skills against job roles and rank them."""
+        if not self.model or not resume_skills:
+            return []
+        
+        # Create embedding for resume skills
+        resume_text = ' '.join(resume_skills)
+        resume_embedding = self.model.encode(resume_text)
+        
+        # Calculate cosine similarity
+        similarities = []
+        for role, jd_embedding in self.jd_embeddings.items():
+            similarity = cosine_similarity([resume_embedding], [jd_embedding])[0][0]
+            similarities.append((role, float(similarity)))
+        
+        # Sort by similarity score
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        return similarities
+
+    def identify_skill_gaps(self, resume_skills: List[str], target_role: str) -> List[str]:
+        """Identify skill gaps for a target job role."""
+        if target_role not in self.job_descriptions:
+            return ["Target role not found."]
+        
+        # Extract required skills from JD
+        jd_text = self.job_descriptions[target_role]
+        required_skills = self.resume_parser.extract_skills(jd_text)
+        
+        # Find missing skills
+        resume_skills_lower = [skill.lower() for skill in resume_skills]
+        skill_gaps = [
+            skill for skill in required_skills 
+            if skill.lower() not in resume_skills_lower
+        ]
+        
+        return skill_gaps
+
+    def find_similar_skills_with_faiss(self, query_skill: str, k: int = 5) -> List[Tuple[str, float]]:
+        """Find similar skills using FAISS index."""
+        if not self.faiss_index or not self.model:
+            return []
+        
+        query_embedding = self.model.encode([query_skill])
+        distances, indices = self.faiss_index.search(query_embedding, k)
+        
+        # Map indices back to roles
+        roles = list(self.job_descriptions.keys())
+        results = []
+        for i, dist in zip(indices[0], distances[0]):
+            if i < len(roles):
+                results.append((roles[i], float(dist)))
+            
+        return results
+
+
+# Example usage and testing
+if __name__ == "__main__":
+    matcher = SkillMatcher()
+    
+    # Sample resume skills
+    sample_skills = ["Python", "SQL", "Pandas", "Data Analysis", "Communication"]
+    
+    # Match to roles
+    ranked_roles = matcher.match_resume_to_roles(sample_skills)
+    print("Ranked Job Roles:", ranked_roles)
+    
+    # Identify skill gaps for a target role
+    target = "Data Analyst"
+    gaps = matcher.identify_skill_gaps(sample_skills, target)
+    print(f"Skill Gaps for {target}:", gaps)
+    
+    # Find similar skills/roles
+    similar = matcher.find_similar_skills_with_faiss("Machine Learning")
+    print("Similar Roles/Skills to 'Machine Learning':", similar)
+from typing import Dict, List, Tuple
 import json
 import os
 
