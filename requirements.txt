@@ -1,0 +1,35 @@
+# PDF Processing
+PyMuPDF==1.23.26
+pdfplumber==0.10.0
+
+# NLP and Text Processing
+spacy==3.7.2
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+
+# Machine Learning and Vector Search
+sentence-transformers==2.2.2
+faiss-cpu==1.7.4
+scikit-learn==1.3.2
+numpy==1.24.4
+pandas==2.1.4
+
+# LLM Integration
+openai==1.3.7
+cohere==4.37
+
+# Frontend
+streamlit==1.28.2
+plotly==5.17.0
+altair==5.2.0
+
+# Utilities
+python-dotenv==1.0.0
+requests==2.31.0
+beautifulsoup4==4.12.2
+regex==2023.10.3
+pydantic==2.5.2
+tqdm==4.66.1
+
+# Optional - LangChain for advanced features
+langchain==0.0.351
+langchain-openai==0.0.2
